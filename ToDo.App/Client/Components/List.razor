@@ -1,0 +1,136 @@
+﻿@using ToDo.App.Shared;
+@using Microsoft.AspNetCore.Components.Web
+@inject HttpClient Http
+<style>
+    .completed {
+        text-decoration: Line-Through;
+    }
+</style>
+<Confirm></Confirm>
+<div class="container mt-5">
+    <h1>
+        @TodoList.Title (@CompletedTasks/@TodoList.Tasks.Count()) <button type="button" class="btn btn-primary" @onclick="DeleteList"> Eliminar</button>
+    </h1>
+    <ProgressBar Progress="PercentCompletedTask" />
+    <form @onsubmit="AddTask">
+        <div class="form-group mt-3">
+            <input type="text" class="form-control" placeholder="Nueva tarea" @bind-value="newTodoTask.Title" />
+        </div>
+        <button type="submit" class="btn btn-primary mt-2"> + Agregar</button>
+    </form>
+    <ul class="list-group mt-2">
+        @foreach (var task in TodoList.Tasks)
+        {
+            <li class="list-group-item">
+                @if (editingTodoTaskId == task.Id)
+                {
+                    <form @onsubmit="() => EditTask(task)">
+                        <div class="form-group mt-3">
+                            <input type="text" class="form-control" @bind-value="task.Title" />
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-2">Guardar</button>
+                    </form>
+                }
+                else
+                {
+                    <span class="@(task.Status == "Completada" ? "completed":"")">
+                        @task.Title
+                    </span>
+                    <button class="btn btn-success btn-sm" @onclick="@(() => CompleteTask(task))">
+                        Completed
+                    </button>
+                    <button class="btn btn-primary btn-sm" @onclick="@(() => ShowEditBox(task.Id))">
+                        Editar
+                    </button>
+                    <button class="btn btn-danger btn-sm" @onclick="@(() => DeleteTask(task.Id))">
+                        Eliminar
+                    </button>
+                }
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter]
+    public TodoList TodoList { get; set; }
+
+    [Parameter]
+    public EventCallback TodoListDeleted { get; set; }
+
+    string todoListUrl = "api/TodoLists";
+    string todoTaskUrl = "api/TodoTasks";
+
+    TodoTask newTodoTask;
+    int editingTodoTaskId = 0;
+
+    public int CompletedTasks
+    {
+        get
+        {
+            return TodoList.Tasks.Count(t => t.Status == "Completada");
+        }
+    }
+
+    public double PercentCompletedTask
+    {
+        get
+        {
+            return TodoList.Tasks.Any() ? ((double)CompletedTasks / (double)TodoList.Tasks.Count) * 100 : 0;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ResetTodoTask();
+    }
+
+    private void ResetTodoTask()
+    {
+        newTodoTask = new TodoTask { Status = "Pendiente", TodoListId = TodoList.Id };
+    }
+
+    private void ShowEditBox(int id)
+    {
+        editingTodoTaskId = id;
+    }
+
+    private async Task RefreshTodoList()
+    {
+        TodoList = await Http.GetFromJsonAsync<TodoList>($"{todoListUrl}/{TodoList.Id}");
+    }
+
+    private async Task AddTask()
+    {
+        await Http.PostAsJsonAsync<TodoTask>(todoTaskUrl, newTodoTask);
+        ResetTodoTask();
+        await RefreshTodoList();
+    }
+
+    private async Task EditTask(TodoTask todoTask)
+    {
+        await Http.PutAsJsonAsync(todoTaskUrl, todoTask);
+        editingTodoTaskId = 0;
+        await RefreshTodoList();
+    }
+
+    private async Task DeleteTask(int todoTaskId)
+    {
+        await Http.DeleteAsync($"{todoTaskUrl}/{todoTaskId}");
+        await RefreshTodoList();
+    }
+
+    private async Task CompleteTask(TodoTask todoTask)
+    {
+        todoTask.Status = "Completada";
+        await Http.PutAsJsonAsync($"{todoTaskUrl}", todoTask);
+        await RefreshTodoList();
+    }
+
+    private async Task DeleteList()
+    {
+        await Http.DeleteAsync($"{todoListUrl}/{TodoList.Id}");
+        await TodoListDeleted.InvokeAsync();
+    }
+
+}

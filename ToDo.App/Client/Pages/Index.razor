@@ -1,0 +1,44 @@
+﻿@page "/"
+@using ToDo.App.Client.Components;
+@using ToDo.App.Shared;
+@inject HttpClient Http
+
+<PageTitle>ToDo</PageTitle>
+<h1>Listas de tareas</h1>
+<form @onsubmit="AddTodoList">
+    <div class="form-group mt-3">
+        <input type="text" class="form-control" placeholder="Nueva lista" @bind="listName" />
+    </div>
+    <button type="submit" class="btn btn-primary mt-2">Agregar</button>
+</form>
+@foreach (var list in todoLists)
+{
+    <List TodoList="list" TodoListDeleted="GetTodoLists"></List>
+}
+
+@code {
+    string todoListUrl = "api/TodoLists";
+
+    private List<TodoList> todoLists = new();
+    string listName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetTodoLists();
+    }
+
+    private async Task GetTodoLists()
+    {
+        todoLists = await Http.GetFromJsonAsync<List<TodoList>>(todoListUrl);
+    }
+
+    private async Task AddTodoList()
+    {
+        var newList = new TodoList { Title = listName, WhenCreated = DateTimeOffset.UtcNow };
+        await Http.PostAsJsonAsync<TodoList>(todoListUrl, newList);
+        listName = "";
+        await GetTodoLists();
+    }
+
+   
+}
