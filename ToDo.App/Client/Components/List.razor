@@ -1,12 +1,10 @@
 ﻿@using ToDo.App.Shared;
-@using Microsoft.AspNetCore.Components.Web
 @inject HttpClient Http
 <style>
     .completed {
         text-decoration: Line-Through;
     }
 </style>
-<Confirm></Confirm>
 <div class="container mt-5">
     <h1>
         @TodoList.Title (@CompletedTasks/@TodoList.Tasks.Count()) <button type="button" class="btn btn-primary" @onclick="DeleteList"> Eliminar</button>
@@ -21,7 +19,7 @@
     <ul class="list-group mt-2">
         @foreach (var task in TodoList.Tasks)
         {
-            <li class="list-group-item">
+            <li @key=task.Id class="list-group-item">
                 @if (editingTodoTaskId == task.Id)
                 {
                     <form @onsubmit="() => EditTask(task)">
@@ -36,9 +34,18 @@
                     <span class="@(task.Status == "Completada" ? "completed":"")">
                         @task.Title
                     </span>
-                    <button class="btn btn-success btn-sm" @onclick="@(() => CompleteTask(task))">
-                        Completed
-                    </button>
+                    @if (task.Status == "Completada")
+                    {
+                        <button class="btn btn-secondary btn-sm m-1" @onclick="@(() => OpenTask(task))">
+                            Abrir
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-success btn-sm m-1" @onclick="@(() => CompleteTask(task))">
+                            Completeda
+                        </button>
+                    }
                     <button class="btn btn-primary btn-sm" @onclick="@(() => ShowEditBox(task.Id))">
                         Editar
                     </button>
@@ -50,7 +57,7 @@
         }
     </ul>
 </div>
-
+<br />
 @code {
     [Parameter]
     public TodoList TodoList { get; set; }
@@ -123,6 +130,13 @@
     private async Task CompleteTask(TodoTask todoTask)
     {
         todoTask.Status = "Completada";
+        await Http.PutAsJsonAsync($"{todoTaskUrl}", todoTask);
+        await RefreshTodoList();
+    }
+
+    private async Task OpenTask(TodoTask todoTask)
+    {
+        todoTask.Status = "Pendiente";
         await Http.PutAsJsonAsync($"{todoTaskUrl}", todoTask);
         await RefreshTodoList();
     }
